@@ -1,4 +1,4 @@
-# Main script - place this in the root of your repository
+// Main script - place this in the root of your repository
 
 const fetch = require('node-fetch');
 const cheerio = require('cheerio');
