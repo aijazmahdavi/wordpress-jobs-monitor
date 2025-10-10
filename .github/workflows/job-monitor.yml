@@ -1,5 +1,3 @@
-# GitHub Actions workflow file - place this in your repository
-
 name: WordPress Jobs Monitor
 
 on:
