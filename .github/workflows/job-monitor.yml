@@ -8,6 +8,9 @@ on:
     - cron: '*/30 * * * *'
   workflow_dispatch: # Allows manual trigger from GitHub UI
 
+permissions:
+  contents: write  # Required to commit changes
+
 jobs:
   check-jobs:
     runs-on: ubuntu-latest
@@ -15,6 +18,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -23,7 +28,7 @@ jobs:
       
       - name: Install dependencies
         run: |
-          npm install node-fetch@2 cheerio nodemailer
+          npm install cheerio nodemailer axios
       
       - name: Check for new jobs
         env:
@@ -38,4 +43,4 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add seen-jobs.json
           git diff --quiet && git diff --staged --quiet || git commit -m "Update seen jobs [skip ci]"
-          git push
+          git push || echo "Nothing to commit or push failed"
