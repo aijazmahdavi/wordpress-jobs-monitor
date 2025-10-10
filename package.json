@@ -1,0 +1,16 @@
+# Package file - place this in the root of your repository
+
+{
+  "name": "wordpress-jobs-monitor",
+  "version": "1.0.0",
+  "description": "Monitor WordPress jobs board for new postings",
+  "main": "monitor.js",
+  "scripts": {
+    "start": "node monitor.js"
+  },
+  "dependencies": {
+    "node-fetch": "^2.6.7",
+    "cheerio": "^1.0.0-rc.12",
+    "nodemailer": "^6.9.1"
+  }
+}
