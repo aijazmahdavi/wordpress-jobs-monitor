@@ -1,4 +1,4 @@
-const fetch = require('node-fetch');
+const axios = require('axios');
 const cheerio = require('cheerio');
 const nodemailer = require('nodemailer');
 const fs = require('fs').promises;
@@ -30,8 +30,8 @@ async function saveSeenJobs(seenJobs) {
 
 async function fetchJobs() {
   try {
-    const response = await fetch(JOBS_URL);
-    const html = await response.text();
+    const response = await axios.get(JOBS_URL);
+    const html = response.data;
     const $ = cheerio.load(html);
     
     const jobs = [];
