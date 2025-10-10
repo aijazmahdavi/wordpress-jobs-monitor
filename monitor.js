@@ -1,5 +1,3 @@
-// Main script - place this in the root of your repository
-
 const fetch = require('node-fetch');
 const cheerio = require('cheerio');
 const nodemailer = require('nodemailer');
@@ -117,15 +115,27 @@ async function sendEmailNotification(newJobs) {
 async function main() {
   console.log(`[${new Date().toISOString()}] Checking for new jobs...`);
   
+  // Validate environment variables
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS || !process.env.EMAIL_TO) {
+    console.error('❌ Missing required environment variables!');
+    console.error('Please set: EMAIL_USER, EMAIL_PASS, EMAIL_TO');
+    process.exit(1);
+  }
+  
+  console.log(`Email configured: ${process.env.EMAIL_USER} -> ${process.env.EMAIL_TO}`);
+  
   const seenJobs = await loadSeenJobs();
+  console.log(`Loaded ${seenJobs.size} previously seen jobs`);
+  
   const currentJobs = await fetchJobs();
   
   if (currentJobs.length === 0) {
     console.log('⚠ No jobs found - site structure may have changed');
+    console.log('This might be normal if there are no jobs posted currently.');
     return;
   }
   
-  console.log(`Found ${currentJobs.length} total jobs`);
+  console.log(`Found ${currentJobs.length} total jobs on the site`);
   
   const newJobs = currentJobs.filter(job => !seenJobs.has(job.id));
   
@@ -133,10 +143,15 @@ async function main() {
     console.log(`🎉 Found ${newJobs.length} new job(s)!`);
     newJobs.forEach(job => console.log(`  - ${job.title} at ${job.company}`));
     
-    await sendEmailNotification(newJobs);
+    try {
+      await sendEmailNotification(newJobs);
+    } catch (emailErr) {
+      console.error('Failed to send email, but continuing...');
+    }
     
     newJobs.forEach(job => seenJobs.add(job.id));
     await saveSeenJobs(seenJobs);
+    console.log('✓ Updated seen jobs list');
   } else {
     console.log('✓ No new jobs found');
   }
@@ -144,5 +159,6 @@ async function main() {
 
 main().catch(err => {
   console.error('Fatal error:', err);
+  console.error('Stack trace:', err.stack);
   process.exit(1);
 });
