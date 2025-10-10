@@ -30,20 +30,48 @@ async function saveSeenJobs(seenJobs) {
 
 async function fetchJobs() {
   try {
-    const response = await axios.get(JOBS_URL);
+    const response = await axios.get(JOBS_URL, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
     const html = response.data;
     const $ = cheerio.load(html);
     
     const jobs = [];
     
-    // Parse job listings
-    $('article.job_listing, .job-listing, article').each((i, elem) => {
+    // Try multiple selectors for job listings
+    const jobElements = $('li.job_listing, article.job_listing, .job-listing, tr.job_listing');
+    
+    console.log(`Found ${jobElements.length} job elements`);
+    
+    jobElements.each((i, elem) => {
       const $job = $(elem);
-      const $link = $job.find('a').first();
-      const title = $link.text().trim() || $job.find('h2, h3, .job-title').text().trim();
-      const link = $link.attr('href');
-      const company = $job.find('.company, .meta .company').text().trim();
-      const location = $job.find('.location, .meta .location').text().trim();
+      
+      // Try to find the title and link
+      let title = '';
+      let link = '';
+      
+      // Try different selectors for title/link
+      const $titleLink = $job.find('.job_listing-clickbox, a.job_listing-clickbox, h3 a, .position a, a[href*="/job/"]').first();
+      
+      if ($titleLink.length) {
+        title = $titleLink.text().trim();
+        link = $titleLink.attr('href');
+      }
+      
+      // Fallback: try to find any link with job in URL
+      if (!link) {
+        const $anyLink = $job.find('a[href*="/job/"]').first();
+        if ($anyLink.length) {
+          link = $anyLink.attr('href');
+          title = $anyLink.text().trim() || $job.find('.position, .job-title, h3').first().text().trim();
+        }
+      }
+      
+      const company = $job.find('.company, .meta .company, td.company').first().text().trim();
+      const location = $job.find('.location, .meta .location, td.location').first().text().trim();
+      const datePosted = $job.find('.date, time, .job-posted').first().text().trim();
       
       if (title && link) {
         const fullLink = link.startsWith('http') ? link : `https://jobs.wordpress.net${link}`;
@@ -52,8 +80,11 @@ async function fetchJobs() {
           title,
           link: fullLink,
           company: company || 'Not specified',
-          location: location || 'Remote/Not specified'
+          location: location || 'Remote/Not specified',
+          datePosted: datePosted || 'N/A'
         });
+        
+        console.log(`  ${i+1}. ${title} - ${company}`);
       }
     });
     
