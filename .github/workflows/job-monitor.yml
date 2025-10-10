@@ -1,0 +1,41 @@
+# GitHub Actions workflow file - place this in your repository
+
+name: WordPress Jobs Monitor
+
+on:
+  schedule:
+    # Runs every 30 minutes
+    - cron: '*/30 * * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+jobs:
+  check-jobs:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      
+      - name: Install dependencies
+        run: |
+          npm install node-fetch@2 cheerio nodemailer
+      
+      - name: Check for new jobs
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        run: node monitor.js
+      
+      - name: Commit updated seen jobs
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add seen-jobs.json
+          git diff --quiet && git diff --staged --quiet || git commit -m "Update seen jobs [skip ci]"
+          git push
