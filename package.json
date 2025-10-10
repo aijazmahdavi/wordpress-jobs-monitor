@@ -7,7 +7,7 @@
     "start": "node monitor.js"
   },
   "dependencies": {
-    "node-fetch": "^2.6.7",
+    "axios": "^1.6.0",
     "cheerio": "^1.0.0-rc.12",
     "nodemailer": "^6.9.1"
   }
