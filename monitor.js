@@ -40,52 +40,43 @@ async function fetchJobs() {
     
     const jobs = [];
     
-    // Try multiple selectors for job listings
-    const jobElements = $('li.job_listing, article.job_listing, .job-listing, tr.job_listing');
-    
-    console.log(`Found ${jobElements.length} job elements`);
-    
-    jobElements.each((i, elem) => {
-      const $job = $(elem);
+    // The site uses div.row for each job listing
+    $('.row').each((i, elem) => {
+      const $row = $(elem);
       
-      // Try to find the title and link
-      let title = '';
-      let link = '';
-      
-      // Try different selectors for title/link
-      const $titleLink = $job.find('.job_listing-clickbox, a.job_listing-clickbox, h3 a, .position a, a[href*="/job/"]').first();
-      
-      if ($titleLink.length) {
-        title = $titleLink.text().trim();
-        link = $titleLink.attr('href');
+      // Skip header rows and rows without job-title
+      if ($row.hasClass('row-head') || $row.hasClass('job-list-col-labels')) {
+        return;
       }
       
-      // Fallback: try to find any link with job in URL
-      if (!link) {
-        const $anyLink = $job.find('a[href*="/job/"]').first();
-        if ($anyLink.length) {
-          link = $anyLink.attr('href');
-          title = $anyLink.text().trim() || $job.find('.position, .job-title, h3').first().text().trim();
-        }
-      }
+      // Find the job title link
+      const $titleDiv = $row.find('.job-title');
+      const $link = $titleDiv.find('a');
       
-      const company = $job.find('.company, .meta .company, td.company').first().text().trim();
-      const location = $job.find('.location, .meta .location, td.location').first().text().trim();
-      const datePosted = $job.find('.date, time, .job-posted').first().text().trim();
+      if (!$link.length) return;
       
-      if (title && link) {
-        const fullLink = link.startsWith('http') ? link : `https://jobs.wordpress.net${link}`;
-        jobs.push({
-          id: fullLink,
-          title,
-          link: fullLink,
-          company: company || 'Not specified',
-          location: location || 'Remote/Not specified',
-          datePosted: datePosted || 'N/A'
-        });
-        
-        console.log(`  ${i+1}. ${title} - ${company}`);
-      }
+      const title = $link.text().trim();
+      const link = $link.attr('href');
+      
+      if (!title || !link) return;
+      
+      // Extract date, job type, and location
+      const datePosted = $row.find('.job-date').text().trim();
+      const jobType = $row.find('.job-type').text().trim();
+      const location = $row.find('.job-location').text().trim();
+      
+      const fullLink = link.startsWith('http') ? link : `https://jobs.wordpress.net${link}`;
+      
+      jobs.push({
+        id: fullLink,
+        title,
+        link: fullLink,
+        jobType: jobType || 'Not specified',
+        location: location || 'N/A',
+        datePosted: datePosted || 'N/A'
+      });
+      
+      console.log(`  Found: ${title} (${jobType}) - ${location} [${datePosted}]`);
     });
     
     return jobs;
@@ -99,8 +90,9 @@ async function sendEmailNotification(newJobs) {
   const jobsList = newJobs.map(job => `
     <div style="margin-bottom: 20px; padding: 15px; border-left: 4px solid #0073aa; background: #f9f9f9;">
       <h3 style="margin: 0 0 10px 0; color: #0073aa;">${job.title}</h3>
-      <p style="margin: 5px 0; color: #555;"><strong>Company:</strong> ${job.company}</p>
+      <p style="margin: 5px 0; color: #555;"><strong>Type:</strong> ${job.jobType}</p>
       <p style="margin: 5px 0; color: #555;"><strong>Location:</strong> ${job.location}</p>
+      ${job.datePosted !== 'N/A' ? `<p style="margin: 5px 0; color: #888;"><strong>Posted:</strong> ${job.datePosted}</p>` : ''}
       <p style="margin: 10px 0 0 0;">
         <a href="${job.link}" 
            style="display: inline-block; padding: 8px 16px; background: #0073aa; 
@@ -158,6 +150,7 @@ async function main() {
   const seenJobs = await loadSeenJobs();
   console.log(`Loaded ${seenJobs.size} previously seen jobs`);
   
+  console.log('\nFetching jobs from WordPress Jobs...');
   const currentJobs = await fetchJobs();
   
   if (currentJobs.length === 0) {
@@ -166,25 +159,24 @@ async function main() {
     return;
   }
   
-  console.log(`Found ${currentJobs.length} total jobs on the site`);
+  console.log(`\nFound ${currentJobs.length} total jobs on the site`);
   
   const newJobs = currentJobs.filter(job => !seenJobs.has(job.id));
   
   if (newJobs.length > 0) {
-    console.log(`🎉 Found ${newJobs.length} new job(s)!`);
-    newJobs.forEach(job => console.log(`  - ${job.title} at ${job.company}`));
+    console.log(`\n🎉 Found ${newJobs.length} new job(s)!`);
     
     try {
       await sendEmailNotification(newJobs);
     } catch (emailErr) {
-      console.error('Failed to send email, but continuing...');
+      console.error('Failed to send email:', emailErr.message);
     }
     
     newJobs.forEach(job => seenJobs.add(job.id));
     await saveSeenJobs(seenJobs);
     console.log('✓ Updated seen jobs list');
   } else {
-    console.log('✓ No new jobs found');
+    console.log('\n✓ No new jobs found');
   }
 }
 
