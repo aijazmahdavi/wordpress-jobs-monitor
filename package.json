@@ -1,5 +1,3 @@
-# Package file - place this in the root of your repository
-
 {
   "name": "wordpress-jobs-monitor",
   "version": "1.0.0",
